@@ -1,9 +1,9 @@
 #include <LiquidCrystal_I2C.h>
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
-const int APin = 8; //Set the digital 2 to A pin
-const int BPin = 9; //Set the digital 3 to B pin
-const int SPin = 11; //Set the digital 4 to S pin
+const int APin = 8;  //Rot Encoder
+const int BPin = 9; //Rot Encoder
+const int SPin = 11; //Switch Encoder
 // variabili per Encoder
 int val = 0;
 int oldVal = 0;
@@ -13,48 +13,476 @@ int oldState = 0;
 
 //variabili per i player
 int NumPlayer ;
-int Player[0];
-//int tot = 0; // mantiene il totale dei punti
-int PlayerSel = 0;
+int MaxPlayer = 4;
+int Player[ 4 ];
+int PlayerSel;
 
-int oldn=0; // server per il selettore
+//variabili per il visualizzare selettore
+int oldi = 0;
+int oldj = 0;
 
+//FlagStato
 bool AddPointFlag = false;
 bool ActionPlayerFlag = false;
 bool SelectPlayerFlag = false;
-bool SetUpPlayerFlag = true;
+bool SetUpPlayerFlag = false;
+bool BackStatFlag = false;
+bool WinStatsFlag = false;
+bool WelcomeStatFlag = true;
+
+char *Action[] = {"Add ","Back"}; //Menu per azioni
+int classifica[4]; //array per la classifica
+int clickCount =0; //conta i click per exit
+
 
 
 void setup(){
-  pinMode(APin, INPUT);//initialize the A pin as input
-  pinMode(BPin, INPUT);//initialize the B pin as input
-  pinMode(SPin, INPUT_PULLUP);//initialize the S pin as input  
+  pinMode(APin, INPUT);
+  pinMode(BPin, INPUT);
+  pinMode(SPin, INPUT_PULLUP);
 
-  lcd.begin(); //Init with pin default ESP8266 or ARDUINO
-  lcd.backlight(); //accende la retroilluminazione
+  lcd.begin(); //Init lcd ARDUINO
+  lcd.backlight(); // retroilluminazione
 }
 
 void loop(){
   if(click()){} // check function
+  if(WelcomeStatFlag){
+    WelcomeStato();
+  }
   if(SetUpPlayerFlag){
-    SetUpGameInterface();
+    SetUpGameStato();
   }
   if(SelectPlayerFlag){
-    SelectPlayerInterface();
+    SelectPlayerStato();
   }
   if(ActionPlayerFlag){
-    ActionPlayerInterface();
+    ActionPlayerStato();
   }
   if(AddPointFlag){
-    AddPointInterfaceLcd();
+    AddPointStato();
+  }
+  if(BackStatFlag){
+    BackStato();
+  }
+  if(WinStatsFlag){
+    WinStato();
   }
 }
 
-      //Methods
-//Legge la rotazione del Encoder 
+
+      //Stato
+/* Stato SetUp
+*/
+void SetUpGameStato(){
+  lcd.setCursor(0,0);
+  lcd.print("Giocatori: ");
+  val = val +  getRotaryEncoder();
+  if(val < 0){ val = 0;}
+  //variabile globale maxplayer
+  if(val > MaxPlayer){ val = MaxPlayer;}
+  if(val != oldVal){
+   clearLinePoint(11,0);
+    lcd.setCursor(11,0);
+    lcd.print(val);
+    delay(50);
+    oldVal= val;
+  }
+  if(click()){
+    cISetSel();
+  }
+}
+
+/* Stato Select
+*/
+void SelectPlayerStato(){
+  val = val + getRotaryEncoder();
+  delay(10);
+  if(val < 0){val = 0;}
+  if(val > NumPlayer + 2){val = NumPlayer+2 ;}
+  VSelector(val, 3);
+  if(click()){
+    if(val == NumPlayer){
+      cISelBack();
+    }
+    else if( val ==( NumPlayer + 1) ){
+      cISelWin();
+    }else if(val ==( NumPlayer + 2)){
+      viewScore();
+    }else{
+      cISelAct();
+    }
+  }
+}
+
+/* Stato Action
+*/
+void ActionPlayerStato(){
+  val = val + getRotaryEncoder();
+  if(val < 0){val = 0;}
+  if(val > 1){val = 1;}
+  delay(10);
+  VSelector(val, 4);
+  //cambio stato
+  if(click()){
+    if(val == 0){
+      cIActAdd();
+    }
+    if(val == 1){
+      cIActSel();
+    }
+  }
+
+}
+
+/* Stato Add
+*/
+void AddPointStato(){
+  val = val +  getRotaryEncoder();
+  if(val != oldVal){
+    clearLinePoint(4, 0);
+    lcd.setCursor(0, 0);
+    lcd.print("Val: ");
+    lcd.print(val);
+
+    delay(50);
+    oldVal= val;
+  }
+
+  if(click()){
+    if(val == 0){
+      cIAddAct();
+    }else{
+      Player[PlayerSel] =  Player[PlayerSel] + val;
+      val = 0;
+      clearLinePoint(4,1);
+      lcd.setCursor(0, 1);
+      lcd.print("Tot: ");
+      lcd.print( Player[PlayerSel] );
+      delay(1000);
+      cIAddSel();
+    }
+  }
+
+}
+
+/* Stato Win
+*/
+void WinStato(){
+
+  lcd.setCursor(0,0);
+  lcd.print(ST());
+  lcd.setCursor(0,1);
+  lcd.print(SB());
+
+  lcd.scrollDisplayLeft();
+  delay(700);
+  if(click()){
+    clickCount ++;
+    if(clickCount == 5){
+      cIWinWel();
+    }
+  }
+}
+
+/* Stato Back
+*/
+void BackStato(){
+  val = val + getRotaryEncoder();
+  delay(10);
+  if(val < 0){val = 0;}
+  if(val > 1){val = 0;}
+  VSelector(val, 3);
+  if(click()){
+    if(val == 0){
+      //No
+      cIBackSel();
+    }else{
+      //Yes
+      cIBackSet();
+    }
+
+  }
+}
+
+/* Stato Welcome
+*/
+void WelcomeStato(){
+  WelcomeMessage();
+  cIWelSet();
+}
+
+      //Change State methods
+/* from SetUp to Select
+*/
+void cISetSel(){
+  if(val != 0){
+    lcd.clear();
+    NumPlayer = val;
+    Player[NumPlayer];
+    initPlayer();
+
+
+    SetUpPlayerFlag = false;
+    SelectPlayerFlag = true;
+    val = 0;
+    viewPlayer();
+  }else{
+    lcd.setCursor(0,0);
+    lcd.print("Numero non valido");
+    delay(1000);
+    lcd.clear();
+  }
+
+
+}
+
+/* from Select to Action
+*/
+void cISelAct(){
+  lcd.clear();
+  SelectPlayerFlag = false;
+  ActionPlayerFlag = true;
+  viewAction();
+  PlayerSel = val;
+  val = 0;
+}
+
+/* from Action to Select
+*/
+void cIActSel(){
+  lcd.clear();
+  SelectPlayerFlag = true;
+  ActionPlayerFlag = false;
+  viewPlayer();
+  val = 0;
+
+}
+
+/* from Action to Add
+*/
+void cIActAdd(){
+    lcd.clear();
+    ActionPlayerFlag = false;
+    AddPointFlag = true;
+    val = 0;
+
+    //Prepare interface
+    lcd.setCursor(0, 0);
+    lcd.print("Val: ");
+    lcd.print(val);
+    lcd.setCursor(0, 1);
+    lcd.print("Tot: ");
+    lcd.print(Player[PlayerSel]);
+
+}
+
+/* from Add to Act
+*/
+void cIAddAct(){
+    lcd.clear();
+    viewAction();
+    AddPointFlag = false;
+    ActionPlayerFlag = true;
+    val = 0;
+}
+
+/* from Add to Select
+*/
+void cIAddSel(){
+    lcd.clear();
+    AddPointFlag = false;
+    SelectPlayerFlag = true;
+    viewPlayer();
+    val = 0;
+}
+
+/* from Select to Back
+*/
+void cISelBack(){
+  lcd.clear();
+  SelectPlayerFlag = false;
+  BackStatFlag = true;
+  val = 0;
+  //messaggio di conferma
+  lcd.setCursor(0,0);
+  lcd.print("Confermare");
+  delay(1500);
+  lcd.clear();
+  lcd.setCursor(1,0);
+  lcd.print("No ");
+  lcd.setCursor(1,1);
+  lcd.print("Yes ");
+}
+
+/* from Back to Select
+*/
+void cIBackSel(){
+  lcd.clear();
+    BackStatFlag = false;
+    SelectPlayerFlag = true;
+    viewPlayer();
+    val = 0;
+}
+
+/* from Back to SetUp
+*/
+void cIBackSet(){
+  lcd.clear();
+    BackStatFlag = false;
+    SetUpPlayerFlag = true;
+    val = 0;
+}
+
+/* from Select to Win
+*/
+void cISelWin(){
+  lcd.clear();
+  SelectPlayerFlag = false;
+  WinStatsFlag = true;
+  val = 0;
+  setClassifica();
+  sort();
+}
+
+/* from Welcome to SetUp
+*/
+void cIWelSet(){
+  lcd.clear();
+   WelcomeStatFlag = false;
+   SetUpPlayerFlag = true;
+}
+
+/* from Win to Welcome
+*/
+void cIWinWel(){
+  lcd.clear();
+  WinStatsFlag = false;
+  WelcomeStatFlag = true;
+  GoodByeMessage();
+}
+
+    //view methods
+/* Post: stampa sull Lcd l'elenco dei Player [PN <- N-esimo giocatore]
+*/
+void viewPlayer(){
+  for(int i= 0; i< NumPlayer; i++){
+    int y = i % 2;
+    int x = (3 * (i / 2)) + 1;
+    lcd.setCursor(x,y);
+    lcd.print("P");
+    lcd.print(i+1);
+  }
+  int y = NumPlayer % 2;
+  int x = (3 * (NumPlayer / 2)) + 1;
+  lcd.setCursor(x,y);
+  lcd.print("Scr");
+   y = (NumPlayer + 1) % 2;
+   x = (3 * ( (NumPlayer + 1) / 2)) + 1;
+  lcd.setCursor(x,y);
+  lcd.print("Back");
+  y = (NumPlayer + 2) % 2;
+  x = (3 * ( (NumPlayer + 2) / 2)) + 1;
+ lcd.setCursor(x,y);
+ lcd.print("Win");
+
+}
+
+/* Post: stampa sull Lcd l'elenco delle azioni possibili
+*/
+void viewAction(){
+  lcd.clear();
+  for(int k = 0; k < sizeof(Action);k++){
+    lcd.setCursor(1,k);
+    lcd.print(Action[k]);
+  }
+}
+
+/* Post: stampa sull Lcd messaggi di benvenuto
+*/
+void WelcomeMessage(){
+  lcd.clear();
+  lcd.setCursor(0, 0);
+    lcd.print("GameCounterIno");
+    delay(1000);
+  int count =0;
+  while(count < 17){
+    lcd.scrollDisplayRight();
+    count++;
+    delay(200);
+  }
+  lcd.clear();
+  lcd.setCursor(9, 1);
+  lcd.print("By Bobo");
+  delay(3000);
+}
+
+/* Post: stampa sull Lcd messaggi di uscita
+*/
+void GoodByeMessage(){
+  lcd.clear();
+  lcd.setCursor(1, 0);
+  lcd.print("GameCounterIno");
+  delay(2000);
+  lcd.setCursor(6, 1);
+  lcd.print("End");
+  delay(2000);
+  delay(10000);
+}
+
+
+void viewScore(){
+  lcd.setCursor(0,0);
+  lcd.print(ST());
+  lcd.setCursor(0,1);
+  lcd.print(SB());
+  delay(3000);
+  int c = 0;
+  while(c<30){
+    c++;
+    lcd.scrollDisplayLeft();
+    delay(500);
+  }
+  lcd.clear();
+  val = 0; 
+}
+
+/* Effect: pulisce Lcd dalla posizione [x;y] fino a [x+16;y]
+ */
+void clearLinePoint(int x,int y){
+  lcd.setCursor(x,y);
+  for(x; x < 16; x++){
+    lcd.print(" ");
+  }
+}
+
+/*Effect: permette la visualizzazione di una '>' sull lcd
+ */
+void VSelector(int i, int j){
+  delVSelector(oldi, oldj);
+  int x = 3 * ( i / 2 );
+  int y = i % 2;
+  lcd.setCursor(x,y);
+  lcd.print(">");
+  oldi = i;
+  oldj = j;
+}
+
+/*Effect: permette la scomparsa di '>' sull lcd
+ */
+void delVSelector(int i, int j){
+  int x = 3 * ( i / 2 );
+  int y = i % 2;
+  lcd.setCursor(x,y);
+  lcd.print(" ");
+}
+
+    //Methods
+/*Post: restituisce la lettura dell encoder
+*/
 int getRotaryEncoder(){
-  static int oldA = HIGH; 
-  static int oldB = HIGH; 
+  static int oldA = HIGH;
+  static int oldB = HIGH;
   int result = 0;
   int newA = digitalRead(APin); //read the value of APin to newA
   int newB = digitalRead(BPin); //read the value of BPin to newB
@@ -68,199 +496,98 @@ int getRotaryEncoder(){
   return result;
 }
 
-//Legge un click singolo
+/* Post: restituisce se il pulsante è stato premuto.
+*  true solo quando cambia lo stato da premuto a non premuto, false altrimenti
+*/
 bool click(){
   state = digitalRead(SPin);
-     if(state != oldState){
-      oldState = state;
-      if(state == HIGH){  
+  if(state != oldState){
+    oldState = state;
+    if(state == HIGH){
       return true;
-      }
-     }
+    }
+  }
   return false;
 }
 
-//Pulisce Lcd dall [4;x] fino alla [maxLine:x] 
-void clearLinePoint(int x,int y){
-  lcd.setCursor(x,y);
-  lcd.print("            ");
-}
-
-//Vselector
-void VSelector(int n){
-  
-  delVSelector(oldn);
-  int x = 3 * ( n / 2 );
-  int y = n % 2;
-  lcd.setCursor(x,y);
-  lcd.print(">");
-  oldn = n;
-}
-
-void delVSelector(int n){
-  int x = 3 * ( n / 2 );
-  int y = n % 2;
-  lcd.setCursor(x,y);
-  lcd.print(" ");
-}
-
-      //Interface
-//Interfaccia Setup
-void SetUpGameInterface(){
-  lcd.setCursor(0,0);
-  lcd.print("Giocatori: ");
-  val = val +  getRotaryEncoder();  
-  if(val < 0){ val = 0;}
-  //variabile globale maxplayer
-  if(val != oldVal){    
-   clearLinePoint(11,0);
-    lcd.setCursor(11,0);
-    lcd.print(val);
-    delay(50);
-    oldVal= val;
-  } 
-  if(click()){
-    NumPlayer = val;
-    val=0;
-    lcd.setCursor(0,1);
-    lcd.print(NumPlayer);
-    lcd.print("< nuovo num");
-    cISetSel();
-  }
-}
-
-//Interfaccia SelectPlayer
-void SelectPlayerInterface(){
-  val = val + getRotaryEncoder();
-  delay(10);
-  if(val < 0){val = 0;}
-  if(val > 9){val = 9;}
-  VSelector(val);
-  if(click()){
-    cISelAct();
-  }
-}
-
-//Interfaccia Action Player
-void ActionPlayerInterface(){
-  lcd.setCursor(0,0);
-  lcd.print("Action");
-  val = val + getRotaryEncoder();
-  if(val < 0){val = 0;}
-  if(val > 1){val = 1;}
-  delay(10);
-  //cambio stato
-  if(click()){
-  switch (val) {
-  case 0: //add 
-    cIActAdd();
-    break;
-  case 1: //Back
-   cIActSel();
-    break;
-  }
-}
-
-  delay(1000);
-  cIActAdd();
-}
-
-// Interfacci Addpoint
-void AddPointInterfaceLcd(){
-  val = val +  getRotaryEncoder();  
-  if(val != oldVal){    
-    clearLinePoint(4, 0);
-    lcd.setCursor(0, 0);
-    lcd.print("Val: ");
-    lcd.print(val);
-    
-    delay(50);
-    oldVal= val;
-  } 
-  
-  if(click()){
-    Player[PlayerSel] =  Player[PlayerSel] + val;
-    val = 0;
-    clearLinePoint(4,1);
-    lcd.setCursor(0, 1);
-    lcd.print("Tot: ");
-    lcd.print( Player[PlayerSel]);
-    delay(500);
-    
-    cIAddSel();
-  }
- 
-}
-
-
-      //Change Interface
-//change Interface from: Set to: Sel
-void cISetSel(){
-  lcd.clear();
+/* Effect: inizializza Player[]
+*/
+void initPlayer(){
   Player[NumPlayer];
-  SetUpPlayerFlag = false;
-  SelectPlayerFlag = true;
-  val = 0;
-  viewPlayer();
-}
-
-// change interface from: Sel to: Act
-void cISelAct(){
-  lcd.clear();
-  SelectPlayerFlag = false;
-  ActionPlayerFlag = true;
-  PlayerSel = val;
-  val = 0;
-}
-
-// change interface from: Act to: Sel
-void cIActSel(){
-  lcd.clear();
-  SelectPlayerFlag = true;
-  ActionPlayerFlag = false;
-  val = 0;
-  viewPlayer();
-}
-
-//change Interface from:Act to:Add
-void cIActAdd(){
-    lcd.clear();
-    ActionPlayerFlag = false;
-    AddPointFlag = true;
-    val = 0;
-    //Prepare interface
-    lcd.setCursor(0, 0);
-    lcd.print("Val: ");
-    lcd.print(val);
-    lcd.setCursor(0, 1);
-    lcd.print("Tot: ");
-    lcd.print( Player[PlayerSel]);
-    
-}
-
-//change Interface from:Add to:Act
-void cIAddAct(){
-    lcd.clear();
-    AddPointFlag = false;
-    ActionPlayerFlag = true;
-    val = 0;
-}
-
-//change Interface from:Add to:Sel
-void cIAddSel(){
-    lcd.clear();
-    AddPointFlag = false;
-    SelectPlayerFlag = true;
-    val = 0;
-    viewPlayer();
-}
-
-void viewPlayer(){
-  for(int i= 0; i< NumPlayer; i++){
-    int y = i % 2;
-    int x = (3 * (i / 2)) + 1; 
-    lcd.setCursor(x,y);
-    lcd.print("P");
-    lcd.print(i);
+  for(int i =0; i< NumPlayer; i++){
+    Player[i] = 0;
   }
 }
+
+/* Effect: ordina in modo crescente (Bubble Sort) Player[] e sposta gli elementi in classifica in corrispondenza
+*/
+void sort() {
+  //inizializza Array classifica
+   int t;
+   int tc;
+
+    for( int i =0; i<(NumPlayer - 1); i++) {
+        for(int k=0; k<(NumPlayer-(i+1)); k++) {
+                if(Player[k] < Player[k+1]) {
+                    t = Player[k];
+                    Player[k] = Player[k+1];
+                    Player[k+1] = t;
+
+                     tc = classifica[k];
+                    classifica[k] = classifica[k + 1];
+                    classifica[k + 1] = tc;
+                }
+        }
+    }
+}
+
+/* Effect: riempie l'array classifica
+*/
+void setClassifica(){
+  for(int i = 0; i < NumPlayer; i++ ){
+    classifica[i] = i+1;
+  }
+}
+
+/* Post: restituisce una stringa che rappresenta la classifica ( posizione ^PN )
+*/
+String ST(){
+  String s="";
+  for(int i =0 ; i < NumPlayer; i++){
+    s += (String) ( ( NumPlayer) - i) ;
+    s += "^P";
+    s += (String)classifica[i];
+    s += " ";
+  }
+  return s;
+}
+
+/* Post: restituisce una stringa che rappresenta i punteggi ordinati
+*/
+String SB(){
+  String s="";
+  for(int i = NumPlayer-1 ; i >= 0; i--){
+    s += headSpace(Player[i]) ;
+    s += (String)Player[i];
+    s += " ";
+  }
+  return s;
+}
+
+/* Post: restituisce una stringa che serve per allineare SB con ST
+*/
+String headSpace(int n){
+  String s="";
+  if(n < 10){
+    s+=" ";
+  }
+  if(n < 100){
+    s+=" ";
+  }
+  if(n < 100){
+    s+=" ";
+  }
+  return s;
+}
+
+// altre funzioni di view() -> prepare
