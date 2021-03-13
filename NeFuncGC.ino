@@ -35,7 +35,7 @@ int classifica[4]; //array per la classifica
 int clickCount =0; //conta i click per exit
 
 
-int col = 4;
+int col = 4; // variabile per la visualizzazione dello stato SelectPlayerStato
 void setup(){
   pinMode(APin, INPUT);
   pinMode(BPin, INPUT);
@@ -107,7 +107,7 @@ void SelectPlayerStato(){
     }
     else if( val ==( NumPlayer + 1) ){
        cISelBack();
-       
+
     }else if(val ==( NumPlayer + 2)){
        cISelWin();
     }else{
@@ -377,7 +377,7 @@ void viewPlayer(){
   int y = NumPlayer % 2;
   int x = (col * (NumPlayer / 2)) + 1;
   lcd.setCursor(x,y);
-  lcd.print("Scr");
+  lcd.print("Scr"); // score
    y = (NumPlayer + 1) % 2;
    x = (col * ( (NumPlayer + 1) / 2)) + 1;
   lcd.setCursor(x,y);
@@ -393,9 +393,11 @@ void viewPlayer(){
 */
 void viewAction(){
   lcd.clear();
-  for(int k = 0; k < sizeof(Action);k++){
-    lcd.setCursor(1,k);
-    lcd.print(Action[k]);
+  for(int i = 0; i < sizeof(Action);i++){
+    int y = i % 2;
+    int x = (4 * (i / 2)) + 1; //4 -> la dimensione della colonna 4
+    lcd.setCursor(x,y);
+    lcd.print(Action[i]);
   }
 }
 
@@ -431,14 +433,15 @@ void GoodByeMessage(){
   delay(10000);
 }
 
-
+/* Post: stampa a schermo un informativa sui punteggi attuali della partita
+*/
 void viewScore(){
   lcd.setCursor(0,0);
   lcd.print(STScore());
   lcd.setCursor(0,1);
   lcd.print(SB());
   delay(2000);
-  int c = 0; 
+  int c = 0;
   //5  -> sync con il display
   while( c < 5 * NumPlayer){
     c++;
@@ -447,7 +450,7 @@ void viewScore(){
   }
   lcd.clear();
   viewPlayer();
-  val = 0; 
+  val = 0;
 }
 
 /* Effect: pulisce Lcd dalla posizione [x;y] fino a [x+16;y]
