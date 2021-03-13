@@ -107,7 +107,6 @@ void SelectPlayerStato(){
     }
     else if( val ==( NumPlayer + 1) ){
        cISelBack();
-
     }else if(val ==( NumPlayer + 2)){
        cISelWin();
     }else{
@@ -213,6 +212,7 @@ void WelcomeStato(){
   cIWelSet();
 }
 
+
       //Change State methods
 /* from SetUp to Select
 */
@@ -266,16 +266,8 @@ void cIActAdd(){
     lcd.clear();
     ActionPlayerFlag = false;
     AddPointFlag = true;
+      viewPoint():
     val = 0;
-
-    //Prepare interface
-    lcd.setCursor(0, 0);
-    lcd.print("Val: ");
-    lcd.print(val);
-    lcd.setCursor(0, 1);
-    lcd.print("Tot: ");
-    lcd.print(Player[PlayerSel]);
-
 }
 
 /* from Add to Act
@@ -451,6 +443,15 @@ void viewScore(){
   lcd.clear();
   viewPlayer();
   val = 0;
+}
+
+void viewPoint(){
+  lcd.setCursor(0, 0);
+  lcd.print("Val: ");
+  lcd.print(val);
+  lcd.setCursor(0, 1);
+  lcd.print("Tot: ");
+  lcd.print(Player[PlayerSel]);
 }
 
 /* Effect: pulisce Lcd dalla posizione [x;y] fino a [x+16;y]
