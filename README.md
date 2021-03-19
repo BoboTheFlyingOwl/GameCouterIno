@@ -19,7 +19,7 @@ Dallo stato Select è possibile vedere i punti dei vari player selezionando l'op
 ## Terminare la partita
 Selezionando l'opzione Win viene visualizzato la classifica della partita gia ordinata.
 
-##Opzione Back
+## Opzione Back
 Alcuni stati hanno l'opzione Back con la quale è possibile tornare allo stato precedente. Nello stato Select questa opzione dará la possibilita di ripetere l azione di selezionare quanti giocatori. Riselezionando azzererà i punteggi attuali comuque questa azione è seguita da una conferma.
 
 
