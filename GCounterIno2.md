@@ -71,7 +71,7 @@ I view:
 * GoodByMessage: visualizza la schermata terminale.
 
 
-##  Aggiornamento 
+##  Aggiornamento v2
 Impostato la possibilita di avere un timer che segna la durata della partita.
 I view:
 * viewTimer: visualizza la durata della partita.
