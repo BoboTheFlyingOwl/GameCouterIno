@@ -430,18 +430,7 @@ void cIWinWel(){
   GoodByeMessage();
 }
 
-/*Effect: imposta l'inizio del timer.
- */
-void startTimer(){
-  t0 = millis();
-}
 
-/*Post: restituisce quanti millisecondi sono passati dall' inizio della partia
- */
-void stopTimer(){
-  dt = millis() - t0;
-}
-    
     //view methods
 /* Post: stampa sull Lcd l'elenco dei Player [PN <- N-esimo giocatore]
 */
@@ -722,6 +711,7 @@ String SB(){
 /* Post: restituisce una stringa che serve per allineare SB con ST
 */
 String headSpace(int n){
+  
   String s="";
   if(n < 10){
     s+=" ";
@@ -734,3 +724,16 @@ String headSpace(int n){
   }
   return s;
 }
+
+/*Effect: imposta l'inizio del timer.
+ */
+void startTimer(){
+  t0 = millis();
+}
+
+/*Post: restituisce quanti millisecondi sono passati dall' inizio della partia
+ */
+void stopTimer(){
+  dt = millis() - t0;
+}
+    
